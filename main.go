@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
-	// "os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,16 +18,11 @@ const (
 )
 
 func main() {
-    fmt.Println("Starting server")
 		r := gin.Default()
-		eng := Engine{}
-		r.GET("/ping", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"message": "pong",
-			})
-		})
-		r.POST("/create", eng.HandleCreateDocument)
-		r.GET("/find", eng.HandleGetDocument)
+		handler := Handler{}
+
+		r.POST("/create", handler.HandleCreateDocument)
+		r.GET("/find", handler.HandleGetDocument)
 		r.Run()
 }
 
