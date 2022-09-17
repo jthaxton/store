@@ -10,9 +10,8 @@ services:
           - 27017:27017
         networks:
           - bridge
-        # command: mongod --bind_ip mongodb
     server:
-        image: store_servide
+        image: store_service
         restart: always
         ports:
           - 8080:8080

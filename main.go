@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -25,16 +26,10 @@ func main() {
 		r.GET("/find", handler.HandleGetDocument)
 		r.Run()
 }
-
 // GetConnection - Retrieves a client to the DocumentDB
 func getConnection() (*mongo.Client, context.Context, context.CancelFunc) {
-	username := "root"// os.Getenv("MONGODB_USERNAME")
-	password := "example"// os.Getenv("MONGODB_PASSWORD")
-	clusterEndpoint := "documents"
-
-	connectionURI := fmt.Sprintf(connectionStringTemplate, username, password, clusterEndpoint)
-	fmt.Println(connectionURI)
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://root:example@mongo:27017"))
+	connectionStr := fmt.Sprintf("mongodb://%s:%s@mongo:27017", os.Getenv("ME_CONFIG_MONGODB_ADMINUSERNAME"), os.Getenv("ME_CONFIG_MONGODB_ADMINPASSWORD"))
+	client, err := mongo.NewClient(options.Client().ApplyURI(connectionStr))
 	if err != nil {
 		log.Printf("Failed to create client: %v", err)
 	}
