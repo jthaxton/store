@@ -1,27 +1,26 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Handler struct {}
 
 func (handler *Handler) HandleCreateDocument(c *gin.Context) {
 	customId := c.DefaultQuery("customId", "")
-	id, err := Create(customId, c.Request)
+	if len(customId) == 0 {
+		c.JSON(403, gin.H{"error": "customId not found"})
+	}
 
+	id, err := Create(customId, c.Request, c)
 	if err != nil {
-		log.Println("Could not create document")
-		c.JSON(http.StatusInternalServerError, gin.H{"msg": err})
+		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -30,17 +29,19 @@ func (handler *Handler) HandleCreateDocument(c *gin.Context) {
 
 func (handler *Handler) HandleGetDocument(c *gin.Context) {
 	url := c.DefaultQuery("customId", "")
-	var doc primitive.M
-
-	if len(url) > 0 {
-		doc = FindOneDocument(url)
+	if len(url) == 0 {
+		c.JSON(403, gin.H{"error": "customId not found"})
 	}
-
-	c.JSON(http.StatusOK, gin.H{"document": doc})
+	doc, err := FindOneDocument(url)
+	if err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"document": *doc})
+	}
 }
 
 //Create a document
-func Create(customId string, req *http.Request) (primitive.ObjectID, error) {
+func Create(customId string, req *http.Request, c *gin.Context) (*primitive.M, error) {
 	client, ctx, cancel := getConnection()
 	defer cancel()
 	defer client.Disconnect(ctx)
@@ -48,25 +49,27 @@ func Create(customId string, req *http.Request) (primitive.ObjectID, error) {
 	err := json.NewDecoder(req.Body).Decode(&model)
 	
 	if err != nil {
-		fmt.Println(err.Error())
+		c.JSON(403, gin.H{"error": err.Error()})
+		return nil, err
 	}
 
 	doc := bson.D{{Key: "id", Value: primitive.NewObjectID()}, {Key: "customId", Value: customId}, {Key: "meta", Value: model}}
 	result := client.Database("documents").Collection("documents")
-	res, err := result.InsertOne(ctx, doc)
-	
+	_, err = result.InsertOne(ctx, doc)
 	if err != nil {
-		log.Printf("Could not create Document: %v", err)
-		return primitive.NilObjectID, err
+		return nil, err
 	}
 
-	oid := res.InsertedID.(primitive.ObjectID)
-	log.Println("Created document")
-
-	return oid, nil
+	// oid := res.InsertedID.
+	docReturned, err := FindOneDocument(customId)
+	if err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
+		return nil, err
+	}
+	return docReturned, nil
 }
 
-func FindOneDocument(customId string) bson.M {
+func FindOneDocument(customId string) (*bson.M, error) {
 	client, ctx, cancel := getConnection()
 	defer cancel()
 	defer client.Disconnect(ctx)
@@ -74,12 +77,7 @@ func FindOneDocument(customId string) bson.M {
 	err := client.Database("documents").Collection("documents").FindOne(context.TODO(), bson.D{{Key: "customId", Value: customId}}).Decode(&result)
 	
 	if err != nil {
-		fmt.Println(err.Error())
-		if err == mongo.ErrNoDocuments {
-			fmt.Println("NO DOCS FOUND")
-			return nil
-		}
-		return nil
+		return nil, err
 	}
-	return result
+	return &result, nil
 }

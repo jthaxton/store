@@ -9,3 +9,4 @@ ENV MONGODB_USERNAME=root MONGODB_PASSWORD=example MONGODB_ENDPOINT=documents
 COPY --from=builder /main ./
 ENTRYPOINT ["./main"]
 EXPOSE 8080
+EXPOSE 8081
